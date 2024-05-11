@@ -9,7 +9,10 @@ To reproduce, open Matlab and run:
 > main
 ```
 
-**Note:** Requires `Statistics and Machine Learning Toolbox`
+**Matlab Prerequisites:**
+
+- `Statistics and Machine Learning Toolbox`
+- `Signal Processing Toolbox`
 
 This experiment makes use of the following publically-available source code. 
 These files are not licensed under the MIT license that covers the rest of the 
