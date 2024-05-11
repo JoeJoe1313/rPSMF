@@ -9,6 +9,8 @@ To reproduce, open Matlab and run:
 > main
 ```
 
+**Note:** Requires `Statistics and Machine Learning Toolbox`
+
 This experiment makes use of the following publically-available source code. 
 These files are not licensed under the MIT license that covers the rest of the 
 PSMF codebase and are not copyrighted by us. Copyright belongs to the original 
