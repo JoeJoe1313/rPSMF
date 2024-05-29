@@ -2,3 +2,4 @@
 pypsmf/psmf.egg-info/
 pypsmf/psmf/__pycache__
 venv/
+.DS_Store
