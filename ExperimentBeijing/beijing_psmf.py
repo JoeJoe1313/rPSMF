@@ -2,12 +2,12 @@
 # -*- coding: utf-8 -*-
 
 import argparse
-import autograd.numpy as np
-import matplotlib.pyplot as plt
 import time
 
+import autograd.numpy as np
+import matplotlib.pyplot as plt
 from psmf import PSMFIter
-from psmf.nonlinearities import RandomWalk, FourierBasis
+from psmf.nonlinearities import FourierBasis, RandomWalk
 from psmf.tracking import TrackingMixin
 
 plt.rcParams["figure.raise_window"] = False
@@ -15,9 +15,7 @@ plt.rcParams["figure.raise_window"] = False
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "-i", "--input", help="Input data file (csv)", required=True
-    )
+    parser.add_argument("-i", "--input", help="Input data file (csv)", required=True)
     parser.add_argument(
         "--figure",
         help="Figure to generate",
@@ -151,9 +149,7 @@ def main():
         "cost_y": args.output_cost,
         "fit": args.output_fit,
     }
-    psmf.figures_save(
-        y, n_pred, T, output_files=output_files, fit_figsize=(8, 2)
-    )
+    psmf.figures_save(y, n_pred, T, output_files=output_files, fit_figsize=(8, 2))
 
 
 if __name__ == "__main__":
