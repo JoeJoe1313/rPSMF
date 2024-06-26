@@ -4,20 +4,15 @@
 """
 
 import autograd.numpy as np
-
 from autograd import grad, jacobian
 
-from .learning_rate import BaseLearningRate
-from .learning_rate import ConstantLearningRate
+from .learning_rate import BaseLearningRate, ConstantLearningRate
 
 
 class PSMFIter:
-
     """Iterative version of PSMF"""
 
-    def __init__(
-        self, theta0, C0, V0, mu0, P0, Qs, Rs, nonlinearity, optim="adam"
-    ):
+    def __init__(self, theta0, C0, V0, mu0, P0, Qs, Rs, nonlinearity, optim="adam"):
         self.nonlinearity = nonlinearity
         assert optim in ["adam", "sgd"]
         self.optim = optim
@@ -49,19 +44,13 @@ class PSMFIter:
         # Returns the incremental likelihood function
         def normnon(theta, mu, V, t):
             return (
-                self.nonlinearity(theta, mu, t).T
-                @ V
-                @ self.nonlinearity(theta, mu, t)
+                self.nonlinearity(theta, mu, t).T @ V @ self.nonlinearity(theta, mu, t)
             )
 
         def incremental_ll(theta, mu, y, C, V, eta_k, d, t):
-            return 0.5 * d * np.log(
-                normnon(theta, mu, V, t) + eta_k
-            ) + 0.5 * np.power(
+            return 0.5 * d * np.log(normnon(theta, mu, V, t) + eta_k) + 0.5 * np.power(
                 np.linalg.norm(y - C @ self.nonlinearity(theta, mu, t)), 2
-            ) / (
-                eta_k + normnon(theta, mu, V, t)
-            )
+            ) / (eta_k + normnon(theta, mu, V, t))
 
         return incremental_ll
 
@@ -120,8 +109,7 @@ class PSMFIter:
 
     def _compute_eta_k(self, k, P_bar):
         return (
-            np.trace(self._R[k] + self._C[k - 1] @ P_bar @ self._C[k - 1].T)
-            / self._d
+            np.trace(self._R[k] + self._C[k - 1] @ P_bar @ self._C[k - 1].T) / self._d
         )
 
     def _compute_dictionary_innovation(self, k, eta_k, mu_bar, P_bar):
@@ -138,9 +126,7 @@ class PSMFIter:
         self._V[k] = self._V[k - 1] - num / Nk
 
     def _compute_inverse_coefficient_innovation(self, k, mu_bar, P_bar):
-        Rbar = self._R[k] + np.kron(
-            mu_bar.T @ self._V[k - 1] @ mu_bar, np.eye(self._d)
-        )
+        Rbar = self._R[k] + np.kron(mu_bar.T @ self._V[k - 1] @ mu_bar, np.eye(self._d))
         if np.all(Rbar == np.diag(np.diagonal(Rbar))) and Rbar.sum() > 0:
             Ri = np.diag(1 / np.diag(Rbar))
             RiC = Ri @ self._C[k - 1]
@@ -154,15 +140,11 @@ class PSMFIter:
 
     def _update_coefficient_mean(self, k, yk, Skinv, mu_bar, P_bar):
         # Mean update of x_k
-        self._mu[k] = mu_bar + P_bar @ self._C[k - 1].T @ Skinv @ (
-            yk - self._y_pred[k]
-        )
+        self._mu[k] = mu_bar + P_bar @ self._C[k - 1].T @ Skinv @ (yk - self._y_pred[k])
 
     def _update_coefficient_covariance(self, k, Skinv, P_bar, yk):
         # Covariance update of x_k
-        self._P[k] = (
-            P_bar - P_bar @ self._C[k - 1].T @ Skinv @ self._C[k - 1] @ P_bar
-        )
+        self._P[k] = P_bar - P_bar @ self._C[k - 1].T @ Skinv @ self._C[k - 1] @ P_bar
 
     def _store_gradient(self, i, k, yk, eta_k):
         self._gradsum += self._gradfunc(
@@ -188,7 +170,7 @@ class PSMFIter:
             self._y_pred[k] = self._C[T] @ self._mu_pred[k]
 
     def adam_init(self, gam=1e-3, b1=0.9, b2=0.999):
-        """ Initialize adam """
+        """Initialize adam"""
         if isinstance(gam, BaseLearningRate):
             self.adam_gam = gam
         else:
@@ -222,22 +204,16 @@ class PSMFIter:
             return self.sgd_update(i, project=project)
 
     def adam_update(self, i, project=True):
-        self.adam_m = (
-            self.adam_b1 * self.adam_m + (1 - self.adam_b1) * self._gradsum
+        self.adam_m = self.adam_b1 * self.adam_m + (1 - self.adam_b1) * self._gradsum
+        self.adam_v = self.adam_b2 * self.adam_v + (1 - self.adam_b2) * np.multiply(
+            self._gradsum, self._gradsum
         )
-        self.adam_v = self.adam_b2 * self.adam_v + (
-            1 - self.adam_b2
-        ) * np.multiply(self._gradsum, self._gradsum)
         self.adam_m_hat = self.adam_m / (1 - np.power(self.adam_b1, i))
         self.adam_v_hat = self.adam_v / (1 - np.power(self.adam_b2, i))
 
-        pr = np.divide(
-            np.ones(self.theta0.shape), np.sqrt(self.adam_v_hat) + 1e-8
-        )
+        pr = np.divide(np.ones(self.theta0.shape), np.sqrt(self.adam_v_hat) + 1e-8)
         lr = self.adam_gam.get(i)
-        self._theta[i] = self._theta[i - 1] - lr * np.multiply(
-            pr, self.adam_m_hat
-        )
+        self._theta[i] = self._theta[i - 1] - lr * np.multiply(pr, self.adam_m_hat)
         if project:
             self._theta[i] = np.maximum(self._theta[i], 0)
 
@@ -256,9 +232,7 @@ class PSMFIterMissing(PSMFIter):
     def incremental_ll_factory(self):
         def normnon(theta, mu, V, t):
             return (
-                self.nonlinearity(theta, mu, t).T
-                @ V
-                @ self.nonlinearity(theta, mu, t)
+                self.nonlinearity(theta, mu, t).T @ V @ self.nonlinearity(theta, mu, t)
             )
 
         def incremental_ll(theta, mu, z, m, C, V, eta_k, d, t):
@@ -307,7 +281,7 @@ class PSMFRecursive(PSMFIter):
         self._gradsum = np.zeros(self.theta0.shape)
 
     def _carry_theta(self, i):
-        self._theta[i] = self._theta[i-1]
+        self._theta[i] = self._theta[i - 1]
 
     def _set_gradient(self, k, yk, eta_k):
         self._gradsum = self._gradfunc(
@@ -325,7 +299,5 @@ class PSMFRecursive(PSMFIter):
         last_theta = self._theta[T]
         self._mu_pred = {T: self._mu[T]}
         for k in range(T + 1, T + n_pred + 1):
-            self._mu_pred[k] = self.nonlinearity(
-                last_theta, self._mu_pred[k - 1], k
-            )
+            self._mu_pred[k] = self.nonlinearity(last_theta, self._mu_pred[k - 1], k)
             self._y_pred[k] = self._C[T] @ self._mu_pred[k]

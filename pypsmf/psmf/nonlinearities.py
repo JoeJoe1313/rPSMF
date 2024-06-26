@@ -8,6 +8,7 @@ are mainly added for convenience.
 """
 
 import abc
+
 import autograd.numpy as np
 
 
@@ -147,4 +148,45 @@ class FourierBasis(BaseNonLinearity):
             e = params[2 * N + 4 * n + 2]
             f = params[2 * N + 4 * n + 3]
             out += D @ np.cos(2 * np.pi * e * t + f * x)
-        return out
+
+        # return out
+        return out[0].reshape(r, 1)
+
+
+# class Gaussians:
+
+#     def __init__(self, B_POINTS, NUMS):
+#         super().__init__()
+#         self.B_POINTS = B_POINTS
+#         self.NUMS = NUMS
+
+#     def gaussian(self, x, mu, sigma):
+#         return np.exp(-((x - mu) ** 2) / (2 * sigma**2))
+
+#     def simulate_ecg_beat(self, t, offset):
+#         ecg_beat = np.zeros_like(t)
+
+#         waves = [
+#             {"mu": 0.2, "sigma": 0.025, "amplitude": -0.1},  # P wave
+#             {"mu": 0.3, "sigma": 0.01, "amplitude": 0.15},  # Q wave
+#             {"mu": 0.35, "sigma": 0.01, "amplitude": -0.5},  # R wave
+#             {"mu": 0.4, "sigma": 0.01, "amplitude": 0.2},  # S wave
+#             {"mu": 0.7, "sigma": 0.05, "amplitude": -0.2},  # T wave
+#         ]
+
+#         for wave in waves:
+#             ecg_beat += wave["amplitude"] * self.gaussian(
+#                 t, wave["mu"] + offset, wave["sigma"]
+#             )
+
+#         return ecg_beat
+
+#     def __call__(self, theta, x, t):
+#         ecg_beat = self.simulate_ecg_beat(
+#             (t % (self.B_POINTS // self.NUMS)) / (self.B_POINTS // self.NUMS), 0
+#         )
+#         periodic_component = np.cos(
+#             2 * np.pi * theta * (t / (self.B_POINTS // self.NUMS)) + x
+#         )
+
+#         return ecg_beat * periodic_component

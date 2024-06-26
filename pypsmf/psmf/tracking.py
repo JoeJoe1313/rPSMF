@@ -8,8 +8,7 @@ import autograd.numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 
-
-plt.rcParams["text.usetex"] = True
+plt.rcParams["text.usetex"] = False
 plt.rcParams["text.latex.preamble"] = "\\usepackage{{sansmath}}\\sansmath"
 plt.rcParams["font.family"] = "sans-serif"
 plt.rcParams["font.sans-serif"] = "Helvetica"
@@ -71,9 +70,7 @@ class TrackingMixin:
         self._E_train[i] = np.linalg.norm(Y_pred[:, :T] - Y_true[:, :T]).item()
         self._E_pred[i] = np.linalg.norm(Y_pred[:, T:] - Y_true[:, T:]).item()
         if not theta_true is None:
-            self._E_theta[i] = np.linalg.norm(
-                self._theta[i] - theta_true
-            ).item()
+            self._E_theta[i] = np.linalg.norm(self._theta[i] - theta_true).item()
 
     def figures_init(self, live_plot=False):
         if not live_plot:
@@ -100,9 +97,7 @@ class TrackingMixin:
 
         Y = np.asarray([y_obs[t] for t in range(1, T + n_pred + 1)])
         Y = Y.squeeze().T
-        Y_pred = np.asarray(
-            [self._y_pred[t] for t in range(1, T + n_pred + 1)]
-        )
+        Y_pred = np.asarray([self._y_pred[t] for t in range(1, T + n_pred + 1)])
         Y_pred = Y_pred.squeeze().T
 
         U, V = sorted(self._plot_dims(self._d))
@@ -126,7 +121,9 @@ class TrackingMixin:
                 color="#bb5566",
                 linestyle="dashed",
             )
-            ax.axis("off")
+            ax.axis("on")
+            # ax.set_ylim((-1, 1))
+            ax.hlines(0, 0, T + n_pred + 1, color="black", linestyle="dotted")
 
         plt.pause(0.01)
 
@@ -143,15 +140,15 @@ class TrackingMixin:
 
         used = set()
         for l in range(self._r):
-            ax = self._fig_subspace.add_subplot(
-                2, int((self._r + 1) / 2), l + 1
-            )
+            ax = self._fig_subspace.add_subplot(2, int((self._r + 1) / 2), l + 1)
             if x_true:
                 pl = np.argmin(
                     [
-                        np.linalg.norm(X_true[l] - X_pred[m])
-                        if not m in used
-                        else np.inf
+                        (
+                            np.linalg.norm(X_true[l] - X_pred[m])
+                            if not m in used
+                            else np.inf
+                        )
                         for m in range(self._r)
                     ]
                 )
@@ -235,7 +232,7 @@ class TrackingMixin:
             format="pdf",
             bbox_inches="tight",
             pad_inches=0,
-            metadata={'Creator': None, 'Producer': None, 'CreationDate': None},
+            metadata={"Creator": None, "Producer": None, "CreationDate": None},
         )
 
     def figures_save(

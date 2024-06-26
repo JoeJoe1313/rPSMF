@@ -86,10 +86,25 @@ class PSMF(TrackingMixin, PSMFIter):
         del self._C[k - 1], self._V[k - 1], self._P[k - 1]
 
 
-def load_data(filename, sample=True):
+def load_data(
+    filename: str, sample: bool = True, sample_length: int = 100
+) -> np.ndarray:
+    """Loads data from file. Standardises the data. If sample is true
+    the data is sampled with sample_length.
+
+    Args:
+        filename (str): Input data file.
+        sample (bool, optional): Should the data be sampled. Defaults to True.
+        sample_length (int, optional): The size of the sample. Defaults to 100.
+
+    Returns:
+        np.ndarray: Loaded data.
+    """
     Y = np.genfromtxt(filename, delimiter=",")
     Y = ((Y.T - Y.T.mean(axis=0)) / (Y.T.std(axis=0))).T
-    return Y[:, ::100] if sample else Y
+    # return Y[:, ::sample_length] if sample else Y
+    # Y = Y / np.max(np.abs(Y))
+    return Y[:, :sample_length] if sample else Y
 
 
 def main():
@@ -97,7 +112,7 @@ def main():
 
     # Hyperparameters
     seed = 2151  # fixed for reproducibility
-    rank = 1
+    rank = 10
     learning_rate = 1e-3
     theta_scale = 0.1
     c_scale = v_scale = 5
@@ -105,14 +120,14 @@ def main():
     n_iter = 100
 
     if args.figure == "periodic":
-        nonlinearity = FourierBasis(rank=rank, N=1)
+        nonlinearity = FourierBasis(rank=rank, N=6)
     elif args.figure == "random_walk":
         nonlinearity = RandomWalk()
     else:
         raise ValueError("Unknown figure request: {args.figure}")
 
     np.random.seed(seed)
-    Y = load_data(args.input, sample=True)
+    Y = load_data(args.input, sample=True, sample_length=1800)
 
     d, T = Y.shape
     n_pred = int(0.2 * T)

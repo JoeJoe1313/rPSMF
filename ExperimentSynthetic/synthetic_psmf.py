@@ -2,13 +2,16 @@
 # -*- coding: utf-8 -*-
 
 import argparse
-import autograd.numpy as np
 import sys
 import time
 
+import autograd.numpy as np
 from data import generate_normal_data
 from psmf import PSMFIter
 from psmf.tracking import TrackingMixin
+
+B_POINTS = 1800
+NUMS = 4
 
 
 def parse_args():
@@ -69,9 +72,7 @@ class PSMFIterSynthetic(TrackingMixin, PSMFIter):
             self.adam_update(i)
             self.errors_update(i, y_obs, T, n_pred, theta_true=theta_true)
             self.log(i, n_iter, time.time() - t_start, verbose=verbose)
-            self.figures_update(
-                y_obs, T, n_pred, live_plot=live_plot, x_true=x_true
-            )
+            self.figures_update(y_obs, T, n_pred, live_plot=live_plot, x_true=x_true)
 
     ### Algorithmic simplifications
 
@@ -102,8 +103,70 @@ class PSMFIterSynthetic(TrackingMixin, PSMFIter):
     ### End algorithmic simplifications
 
 
+def gaussian(x, mu, sigma):
+    return np.exp(-((x - mu) ** 2) / (2 * sigma**2))
+
+
+# def nonlinearity(theta, x, t):
+#     def simulate_ecg_beat(t, offset):
+#         ecg_beat = np.zeros_like(t)
+#         waves = [
+#             {"mu": 0.2, "sigma": 0.025, "amplitude": -0.1},  # P wave
+#             {"mu": 0.3, "sigma": 0.01, "amplitude": 0.15},  # Q wave
+#             {"mu": 0.35, "sigma": 0.01, "amplitude": -0.5},  # R wave
+#             {"mu": 0.4, "sigma": 0.01, "amplitude": 0.2},  # S wave
+#             {"mu": 0.7, "sigma": 0.05, "amplitude": -0.2},  # T wave
+#         ]
+#         for wave in waves:
+#             ecg_beat += wave["amplitude"] * gaussian(
+#                 t, wave["mu"] + offset, wave["sigma"]
+#             )
+
+#         return ecg_beat
+
+#     ecg_beat = simulate_ecg_beat(
+#         (t % (B_POINTS // NUMS)) / (B_POINTS // NUMS), 0
+#     )  # Modulo to repeat the beat periodically
+#     # Introduce periodic behavior with the cosine function
+#     periodic_component = np.cos(2 * np.pi * theta * (t / (B_POINTS // NUMS)) + x)
+
+#     return ecg_beat * periodic_component
+
+
+###
+
+
 def nonlinearity(theta, x, t):
-    return np.cos(2 * np.pi * theta * t + x)
+    def simulate_ecg_beat(t, offset):
+        ecg_beat = np.zeros_like(t)
+        waves = [
+            {"mu": 0.2, "sigma": 0.025, "amplitude": -0.1},  # P wave
+            {"mu": 0.3, "sigma": 0.01, "amplitude": 0.15},  # Q wave
+            {"mu": 0.35, "sigma": 0.01, "amplitude": -0.5},  # R wave
+            {"mu": 0.4, "sigma": 0.01, "amplitude": 0.2},  # S wave
+            {"mu": 0.7, "sigma": 0.05, "amplitude": -0.2},  # T wave
+        ]
+        for wave in waves:
+            ecg_beat += wave["amplitude"] * gaussian(
+                t, wave["mu"] + offset, wave["sigma"]
+            )
+
+        return ecg_beat
+
+    # Generate a single ECG beat
+    single_beat_duration = 1.0  # duration of a single beat in time units
+    ecg_beat = simulate_ecg_beat(
+        t % single_beat_duration, 0
+    )  # t modulo single_beat_duration
+
+    # Introduce periodic behavior with the cosine function
+    periodic_component = np.cos(2 * np.pi * theta * t + x)
+
+    return ecg_beat * periodic_component
+
+
+# def nonlinearity(theta, x, t):
+#     return np.cos(2 * np.pi * theta * t + x)
 
 
 def main():
@@ -112,16 +175,14 @@ def main():
     print("Using seed: %r" % seed)
     np.random.seed(seed)
 
-    d = 20
+    d = 12
     r = 6
-    T = 500
-    n_pred = 250
+    T = 1500
+    n_pred = 300
     n_iter = 500
-    var = 0.1
+    var = 0.0001
 
-    data = generate_normal_data(
-        nonlinearity, d=d, T=T, n_pred=n_pred, r=r, var=var
-    )
+    data = generate_normal_data(nonlinearity, d=d, T=T, n_pred=n_pred, r=r, var=var)
 
     C0 = 0.1 * np.random.randn(d, r)
     theta0 = 0.1 * np.random.rand(r, 1)
