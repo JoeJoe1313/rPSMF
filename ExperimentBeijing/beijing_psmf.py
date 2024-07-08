@@ -101,7 +101,7 @@ def load_data(
         np.ndarray: Loaded data.
     """
     Y = np.genfromtxt(filename, delimiter=",")
-    Y = ((Y.T - Y.T.mean(axis=0)) / (Y.T.std(axis=0))).T
+    # Y = ((Y.T - Y.T.mean(axis=0)) / (Y.T.std(axis=0))).T
     # return Y[:, ::sample_length] if sample else Y
     # Y = Y / np.max(np.abs(Y))
     return Y[:, :sample_length] if sample else Y
@@ -112,15 +112,15 @@ def main():
 
     # Hyperparameters
     seed = 2151  # fixed for reproducibility
-    rank = 10
-    learning_rate = 1e-3
+    rank = 2
+    learning_rate = 1e-1
     theta_scale = 0.1
     c_scale = v_scale = 5
     p_scale = q_scale = r_scale = 1
-    n_iter = 100
+    n_iter = 50
 
     if args.figure == "periodic":
-        nonlinearity = FourierBasis(rank=rank, N=6)
+        nonlinearity = FourierBasis(rank=rank, N=2)
     elif args.figure == "random_walk":
         nonlinearity = RandomWalk()
     else:
