@@ -5,3 +5,4 @@ pandas>=1.0.3
 scipy>=1.4.1
 safer>=4.0.0
 tqdm
+joblib
