@@ -22,19 +22,18 @@ See the LICENSE file for copyright and licensing information.
 """
 
 import time
+
 import numpy as np
-
-from tqdm import trange
-from joblib import Memory
-
 from common import (
     RMSEM,
+    dump_output,
     matrix_hash,
     parse_args,
     prepare_missing,
     prepare_output,
-    dump_output,
 )
+from joblib import Memory
+from tqdm import trange
 
 MEMORY = Memory("./cache", verbose=0)
 
@@ -142,9 +141,7 @@ def pmf(
         aa_p = probe_vec[:, 0].astype(int)
         aa_m = probe_vec[:, 1].astype(int)
 
-        pred_out = (
-            np.sum(w1_M1[aa_m, :] * w1_P1[aa_p, :], axis=1) + mean_rating
-        )
+        pred_out = np.sum(w1_M1[aa_m, :] * w1_P1[aa_p, :], axis=1) + mean_rating
         pred_out = pred_out * old_std + old_mean
 
         # reconstruct Yrec2
@@ -217,9 +214,7 @@ def main():
         # C,X as the other methods without saving/resetting state.
         rand_state = np.random.get_state()
 
-        [ep, ef, rt] = pmf(
-            Y, C, X, d, n, r, M, missMask, YorigInt, Einit, epochs=Iter
-        )
+        [ep, ef, rt] = pmf(Y, C, X, d, n, r, M, missMask, YorigInt, Einit, epochs=Iter)
 
         np.random.set_state(rand_state)
 

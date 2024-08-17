@@ -7,13 +7,11 @@ See the LICENSE file for copyright and licensing information.
 
 """
 
-import numpy as np
-import time
 import datetime as dt
+import time
 
-from tqdm import trange
-from joblib import Memory
-
+import matplotlib.pyplot as plt
+import numpy as np
 from common import (
     RMSEM,
     dump_output,
@@ -22,14 +20,14 @@ from common import (
     prepare_missing,
     prepare_output,
 )
+from joblib import Memory
+from tqdm import trange
 
 MEMORY = Memory("./cache", verbose=0)
 
 
 @MEMORY.cache
-def temporalRegularizedMF(
-    Y, C, X, d, n, r, M, Mmiss, lam, R, Iter, YorgInt, Einit
-):
+def temporalRegularizedMF(Y, C, X, d, n, r, M, Mmiss, lam, R, Iter, YorgInt, Einit):
 
     Epred = np.zeros([1, Iter + 1])
     Efull = np.copy(Epred)
@@ -70,7 +68,7 @@ def temporalRegularizedMF(
 
         RunTime[:, i + 1] = time.time() - RunTimeStart
 
-    return Epred, Efull, RunTime
+    return Epred, Efull, RunTime, Yrec2
 
 
 def main():
@@ -82,7 +80,23 @@ def main():
     np.random.seed(seed)
 
     # Load the data
+    original_full = np.genfromtxt(
+        "/Users/ljoana/repos/rPSMF/ExperimentImpute/data/original.csv", delimiter=","
+    )
     Yorig = np.genfromtxt(args.input, delimiter=",")
+    fig, axs = plt.subplots(12, 1, figsize=(7, 7))
+    for i in range(12):
+        axs[i].plot(Yorig[i, :], color="red", linewidth=2, label="Missing Inputs")
+        axs[i].plot(
+            original_full[i, :],
+            color="orange",
+            linewidth=2,
+            alpha=0.5,
+            label="Original",
+        )
+    plt.legend(loc="upper right", bbox_to_anchor=(1.1, -0.5), fontsize="small")
+    plt.show(block=False)
+    plt.savefig("tmf_input.pdf")
 
     # Create a copy with missings set to zero
     YorigInt = np.copy(Yorig)
@@ -93,7 +107,7 @@ def main():
 
     # Extract dimensions and set latent dimensionality
     d, n = Yorig.shape
-    r = 10
+    r = 3
     Iter = 2
     rho = 10
     R = rho * np.eye(d)
@@ -128,7 +142,7 @@ def main():
         YrecInit = C @ X
         Einit = RMSEM(YrecInit, YorigInt, missMask)
 
-        [ep, ef, rt] = temporalRegularizedMF(
+        [ep, ef, rt, res] = temporalRegularizedMF(
             Y, C, X, d, n, r, M, missMask, rho, R, Iter, YorigInt, Einit
         )
 
@@ -161,6 +175,23 @@ def main():
         "TMF",
     )
     dump_output(output, args.output)
+    Yorig = np.genfromtxt(args.input, delimiter=",")
+    fig, axs = plt.subplots(12, 1, figsize=(7, 7))
+    for i in range(12):
+        axs[i].plot(Yorig[i, :], color="red", linewidth=2, label="Missing Inputs")
+        axs[i].plot(
+            res[i, :], color="blue", linestyle="--", linewidth=1, label="Reconstruction"
+        )
+        axs[i].plot(
+            original_full[i, :],
+            color="orange",
+            linewidth=2,
+            alpha=0.5,
+            label="Original",
+        )
+    plt.legend(loc="upper right", bbox_to_anchor=(1.1, -0.4), fontsize="small")
+    plt.show(block=False)
+    plt.savefig(f"tmf_output_{args.percentage}_{r}.pdf")
 
 
 if __name__ == "__main__":

@@ -7,13 +7,11 @@ See the LICENSE file for copyright and licensing information.
 
 """
 
-import numpy as np
-import time
 import datetime as dt
+import time
 
-from tqdm import trange
-from joblib import Memory
-
+import matplotlib.pyplot as plt
+import numpy as np
 from common import (
     RMSEM,
     compute_number_inside_bars,
@@ -23,6 +21,8 @@ from common import (
     prepare_missing,
     prepare_output,
 )
+from joblib import Memory
+from tqdm import trange
 
 MEMORY = Memory("./cache", verbose=0)
 
@@ -114,9 +114,9 @@ def robust_PSMF(
             phi = (lmd + diff.T @ Ui @ diff) / (lmd + d)
             V = phi * (V - (V @ Xp @ Xp.T @ V) / Nk)
 
-            # We approximate the boundaries of the interval using (-sig*std, 
-            # +sig*std), based on the normal distribution. This can be shown to 
-            # have a negligle effect on performance compared to the exact 
+            # We approximate the boundaries of the interval using (-sig*std,
+            # +sig*std), based on the normal distribution. This can be shown to
+            # have a negligle effect on performance compared to the exact
             # version (kept below for reference), but is significantly faster.
             sqU = np.sqrt(np.diag(U)).reshape(d, 1)
             YrecL[:, [t]] = Yrec[:, [t]] - sig * sqU
@@ -141,11 +141,9 @@ def robust_PSMF(
 
         RunTime[:, i + 1] = time.time() - RunTimeStart
 
-    InsideBars = compute_number_inside_bars(
-        Mmiss, d, n, YorigInt, YrecL, YrecH
-    )
+    InsideBars = compute_number_inside_bars(Mmiss, d, n, YorigInt, YrecL, YrecH)
 
-    return Epred, Efull, RunTime, InsideBars
+    return Epred, Efull, RunTime, InsideBars, Yrec2
 
 
 def main():
@@ -157,7 +155,23 @@ def main():
     np.random.seed(seed)
 
     # Load the data
+    original_full = np.genfromtxt(
+        "/Users/ljoana/repos/rPSMF/ExperimentImpute/data/original.csv", delimiter=","
+    )
     Yorig = np.genfromtxt(args.input, delimiter=",")
+    fig, axs = plt.subplots(12, 1, figsize=(7, 7))
+    for i in range(12):
+        axs[i].plot(Yorig[i, :], color="red", linewidth=2, label="Missing Inputs")
+        axs[i].plot(
+            original_full[i, :],
+            color="orange",
+            linewidth=2,
+            alpha=0.5,
+            label="Original",
+        )
+    plt.legend(loc="upper right", bbox_to_anchor=(1.1, -0.5), fontsize="small")
+    plt.show(block=False)
+    plt.savefig("rpsmf_input.pdf")
 
     # Create a copy with missings set to zero
     YorigInt = np.copy(Yorig)
@@ -168,7 +182,7 @@ def main():
 
     # Extract dimensions and set latent dimensionality
     d, T = Yorig.shape
-    r = 10
+    r = 3
     sig = 2
     Iter = 2
     rho = 10
@@ -213,7 +227,7 @@ def main():
         YrecInit = C @ X
         Einit = RMSEM(YrecInit, YorigInt, missMask)
 
-        [ep, ef, rt, ib] = robust_PSMF(
+        [ep, ef, rt, ib, res] = robust_PSMF(
             Y,
             C,
             X,
@@ -236,8 +250,8 @@ def main():
         error_pred = ep[:, Iter].item()
         error_full = ef[:, Iter].item()
         if np.isnan(error_pred) or np.isnan(error_full):
-            runtime = float('nan')
-            inside_bar = float('nan')
+            runtime = float("nan")
+            inside_bar = float("nan")
         else:
             runtime = rt[:, Iter].item()
             inside_bar = ib
@@ -281,6 +295,23 @@ def main():
         "rPSMF",
     )
     dump_output(output, args.output)
+    Yorig = np.genfromtxt(args.input, delimiter=",")
+    fig, axs = plt.subplots(12, 1, figsize=(7, 7))
+    for i in range(12):
+        axs[i].plot(Yorig[i, :], color="red", linewidth=2, label="Missing Inputs")
+        axs[i].plot(
+            res[i, :], color="blue", linestyle="--", linewidth=1, label="Reconstruction"
+        )
+        axs[i].plot(
+            original_full[i, :],
+            color="orange",
+            linewidth=2,
+            alpha=0.5,
+            label="Original",
+        )
+    plt.legend(loc="upper right", bbox_to_anchor=(1.1, -0.4), fontsize="small")
+    plt.show(block=False)
+    plt.savefig(f"rpsmf_output_{args.percentage}_{r}.pdf")
 
 
 if __name__ == "__main__":
