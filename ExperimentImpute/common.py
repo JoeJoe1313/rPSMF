@@ -10,10 +10,11 @@ See the LICENSE file for copyright and licensing information.
 import argparse
 import hashlib
 import json
-import numpy as np
 import os
-import safer
 import socket
+
+import numpy as np
+import safer
 
 
 def parse_args():
@@ -21,9 +22,7 @@ def parse_args():
     parser.add_argument(
         "-i", "--input", help="Input CSV file with pollutants", required=True
     )
-    parser.add_argument(
-        "-o", "--output", help="Output JSON file", required=True
-    )
+    parser.add_argument("-o", "--output", help="Output JSON file", required=True)
     parser.add_argument(
         "-p",
         "--percentage",
@@ -31,9 +30,7 @@ def parse_args():
         type=int,
         required=True,
     )
-    parser.add_argument(
-        "-s", "--seed", help="Random seed", type=int, default=42
-    )
+    parser.add_argument("-s", "--seed", help="Random seed", type=int, default=42)
     parser.add_argument(
         "-r", "--repeats", help="Number of MC repeats", type=int, default=1000
     )
@@ -47,7 +44,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def prepare_missing(Ymiss, missRatio, misSeg=20):
+def prepare_missing(Ymiss, missRatio, misSeg=300):
     """Prepare the data by generating a random missing mask
 
     Ymiss : (copy of) the input data (d x n)
