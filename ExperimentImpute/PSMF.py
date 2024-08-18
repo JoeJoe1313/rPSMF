@@ -108,19 +108,6 @@ def main():
         "/Users/ljoana/repos/rPSMF/ExperimentImpute/data/original.csv", delimiter=","
     )
     Yorig = np.genfromtxt(args.input, delimiter=",")
-    fig, axs = plt.subplots(12, 1, figsize=(7, 7))
-    for i in range(12):
-        axs[i].plot(Yorig[i, :], color="red", linewidth=2, label="Missing Inputs")
-        axs[i].plot(
-            original_full[i, :],
-            color="orange",
-            linewidth=2,
-            alpha=0.5,
-            label="Original",
-        )
-    plt.legend(loc="upper right", bbox_to_anchor=(1.1, -0.5), fontsize="small")
-    plt.show(block=False)
-    plt.savefig("psmf_input_300.pdf")
 
     # Create a copy with missings set to zero
     YorigInt = np.copy(Yorig)
@@ -246,7 +233,7 @@ def main():
         )
     plt.legend(loc="upper right", bbox_to_anchor=(1.1, -0.5), fontsize="small")
     plt.show(block=False)
-    plt.savefig(f"psmf_input_300_ext_{args.percentage}.pdf")
+    plt.savefig(f"psmf_input_{args.percentage}_{r}.pdf")
 
     fig, axs = plt.subplots(12, 1, figsize=(7, 7))
     for i in range(12):
@@ -263,7 +250,7 @@ def main():
         )
     plt.legend(loc="upper right", bbox_to_anchor=(1.1, -0.4), fontsize="small")
     plt.show(block=False)
-    plt.savefig(f"psmf_output_300_{args.percentage}_{r}.pdf")
+    plt.savefig(f"psmf_output_{args.percentage}_{r}.pdf")
 
 
 if __name__ == "__main__":
