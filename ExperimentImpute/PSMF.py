@@ -233,10 +233,24 @@ def main():
         "PSMF",
     )
     dump_output(output, args.output)
-    Yorig = np.genfromtxt(args.input, delimiter=",")
+
     fig, axs = plt.subplots(12, 1, figsize=(7, 7))
     for i in range(12):
-        axs[i].plot(Yorig[i, :], color="red", linewidth=2, label="Missing Inputs")
+        axs[i].plot(Ymiss[i, :], color="red", linewidth=2, label="Missing Inputs")
+        axs[i].plot(
+            original_full[i, :],
+            color="orange",
+            linewidth=2,
+            alpha=0.5,
+            label="Original",
+        )
+    plt.legend(loc="upper right", bbox_to_anchor=(1.1, -0.5), fontsize="small")
+    plt.show(block=False)
+    plt.savefig(f"psmf_input_300_ext_{args.percentage}.pdf")
+
+    fig, axs = plt.subplots(12, 1, figsize=(7, 7))
+    for i in range(12):
+        axs[i].plot(Ymiss[i, :], color="red", linewidth=2, label="Missing Inputs")
         axs[i].plot(
             res[i, :], color="blue", linestyle="--", linewidth=1, label="Reconstruction"
         )
