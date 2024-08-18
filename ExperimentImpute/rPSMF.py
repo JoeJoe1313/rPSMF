@@ -171,7 +171,7 @@ def main():
         )
     plt.legend(loc="upper right", bbox_to_anchor=(1.1, -0.5), fontsize="small")
     plt.show(block=False)
-    plt.savefig("rpsmf_input.pdf")
+    plt.savefig("rpsmf_input_300.pdf")
 
     # Create a copy with missings set to zero
     YorigInt = np.copy(Yorig)
@@ -311,7 +311,7 @@ def main():
         )
     plt.legend(loc="upper right", bbox_to_anchor=(1.1, -0.4), fontsize="small")
     plt.show(block=False)
-    plt.savefig(f"rpsmf_output_{args.percentage}_{r}.pdf")
+    plt.savefig(f"rpsmf_output_300_{args.percentage}_{r}.pdf")
 
 
 if __name__ == "__main__":
