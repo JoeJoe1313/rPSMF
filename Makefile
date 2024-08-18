@@ -151,12 +151,8 @@ $(TARGETS_REC_PSMF) &: \
 
 .PHONY: ExperimentImpute impute-output impute-tables
 
-IMPUTE_METHODS=MLESMF TMF PSMF rPSMF PMF BPMF
-IMPUTE_DATA=LondonAir_NO2 \
-	    LondonAir_PM10 \
-	    LondonAir_PM25 \
-	    GasSensor_20160930_203718 \
-	    sp500_closing_prices
+IMPUTE_METHODS=MLESMF TMF PSMF rPSMF
+IMPUTE_DATA=beijing_temperature
 IMPUTE_REPEATS=100
 IMPUTE_PERCENTAGE=20 30 40
 IMPUTE_METRICS=imputation coverage
