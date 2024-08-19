@@ -168,6 +168,7 @@ def get_cell_std(method, dataset, perc, rank, result_dir):
         method,
         dataset,
         perc,
+        rank,
         result_dir,
         key,
         fmt,
