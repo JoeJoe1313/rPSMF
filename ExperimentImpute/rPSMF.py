@@ -169,7 +169,7 @@ def main():
 
     # Extract dimensions and set latent dimensionality
     d, T = Yorig.shape
-    r = 3
+    ranks = [3, 10]
     sig = 2
     Iter = 2
     rho = 10
@@ -178,19 +178,33 @@ def main():
     p = 1.0
     lambda0 = 1.8
 
-    V = v * np.eye(r)
-    Q = q * np.eye(r)
-    R = rho * np.eye(d)
-    P = p * np.eye(r)
+    results_by_rank = {
+        rank: {
+            "errors_predict": [],
+            "errors_full": [],
+            "runtimes": [],
+            "inside_bars": [],
+            "Y_hashes": [],
+            "C_hashes": [],
+            "X_hashes": [],
+            "res": [],
+        }
+        for rank in ranks
+    }
 
-    # Initialize arrays to keep track of quantaties of interest
-    errors_predict = []
-    errors_full = []
-    runtimes = []
-    inside_bars = []
-    Y_hashes = []
-    C_hashes = []
-    X_hashes = []
+    # V = v * np.eye(r)
+    # Q = q * np.eye(r)
+    # R = rho * np.eye(d)
+    # P = p * np.eye(r)
+
+    # # Initialize arrays to keep track of quantaties of interest
+    # errors_predict = []
+    # errors_full = []
+    # runtimes = []
+    # inside_bars = []
+    # Y_hashes = []
+    # C_hashes = []
+    # X_hashes = []
 
     for i in _range(args.repeats):
         # Create the missing mask (missMask) and its inverse (M)
@@ -202,117 +216,119 @@ def main():
         Y = np.copy(Ymiss)
         Y[np.isnan(Y)] = 0
 
-        C = np.random.rand(d, r)
-        X = np.random.rand(r, T)
+        for r in ranks:
+            V = v * np.eye(r)
+            Q = q * np.eye(r)
+            R = rho * np.eye(d)
+            P = p * np.eye(r)
 
-        # store hash of matrices; used to ensure they're the same between
-        # scripts
-        Y_hashes.append(matrix_hash(Y))
-        C_hashes.append(matrix_hash(C))
-        X_hashes.append(matrix_hash(X))
+            C = np.random.rand(d, r)
+            X = np.random.rand(r, T)
 
-        YrecInit = C @ X
-        Einit = RMSEM(YrecInit, YorigInt, missMask)
+            # store hash of matrices; used to ensure they're the same between
+            # scripts
+            results_by_rank[r]["Y_hashes"].append(matrix_hash(Y))
+            results_by_rank[r]["C_hashes"].append(matrix_hash(C))
+            results_by_rank[r]["X_hashes"].append(matrix_hash(X))
 
-        [ep, ef, rt, ib, res] = robust_PSMF(
-            Y,
-            C,
-            X,
-            d,
-            T,
-            r,
-            M,
-            missMask,
-            V,
-            Q,
-            R,
-            P,
-            lambda0,
-            sig,
-            Iter,
-            YorigInt,
-            Einit,
+            YrecInit = C @ X
+            Einit = RMSEM(YrecInit, YorigInt, missMask)
+            # fmt: off
+            [ep, ef, rt, ib, res] = robust_PSMF(
+                Y, C, X, d, T, r, M, missMask, V, Q, R, P, lambda0, sig, Iter, YorigInt, Einit,
+            )
+            # fmt: oon
+
+            error_pred = ep[:, Iter].item()
+            error_full = ef[:, Iter].item()
+            if np.isnan(error_pred) or np.isnan(error_full):
+                runtime = float("nan")
+                inside_bar = float("nan")
+            else:
+                runtime = rt[:, Iter].item()
+                inside_bar = ib
+            
+            results_by_rank[r]["errors_predict"].append(error_pred)
+            results_by_rank[r]["errors_full"].append(error_full)
+            results_by_rank[r]["runtimes"].append(runtime)
+            results_by_rank[r]["inside_bars"].append(inside_bar)
+            results_by_rank[r]["res"].append(res)
+
+            log(
+                "[%s] Rank %02i, Finished step %04i of %04i"
+                % (dt.datetime.now().strftime("%c"), r, i + 1, args.repeats)
+            )
+
+    for r in ranks:
+        params = {
+            "r": r,
+            "sig": sig,
+            "rho": rho,
+            "q": q,
+            "p": p,
+            "Iter": Iter,
+            "lambda0": lambda0,
+            "v": v,
+        }
+        hashes = {
+            "Y": results_by_rank[r]["Y_hashes"],
+            "C": results_by_rank[r]["C_hashes"],
+            "X": results_by_rank[r]["X_hashes"],
+        }
+        results = {
+            "error_predict": results_by_rank[r]["errors_predict"],
+            "error_full": results_by_rank[r]["errors_full"],
+            "runtime": results_by_rank[r]["runtimes"],
+            "inside_sig": results_by_rank[r]["inside_bars"],
+        }
+        output = prepare_output(
+            args.input,
+            __file__,
+            params,
+            hashes,
+            results,
+            seed,
+            args.percentage,
+            missRatio,
+            "rPSMF",
         )
+        fo = f"ExperimentImpute/output/beijing_temperature_{args.percentage}_rPSMF_{r}.json"
+        dump_output(output, fo)
 
-        error_pred = ep[:, Iter].item()
-        error_full = ef[:, Iter].item()
-        if np.isnan(error_pred) or np.isnan(error_full):
-            runtime = float("nan")
-            inside_bar = float("nan")
-        else:
-            runtime = rt[:, Iter].item()
-            inside_bar = ib
+        fig, axs = plt.subplots(12, 1, figsize=(7, 7))
+        for i in range(12):
+            axs[i].plot(Ymiss[i, :], color="red", linewidth=2, label="Missing Inputs")
+            axs[i].plot(
+                original_full[i, :],
+                color="orange",
+                linewidth=2,
+                alpha=0.5,
+                label="Original",
+            )
+        plt.legend(loc="upper right", bbox_to_anchor=(1.1, -0.5), fontsize="small")
+        plt.show(block=False)
+        plt.savefig(f"rpsmf_input_{args.percentage}_{r}.pdf")
 
-        errors_predict.append(error_pred)
-        errors_full.append(error_full)
-        runtimes.append(runtime)
-        inside_bars.append(inside_bar)
-
-        log(
-            "[%s] Finished step %04i of %04i"
-            % (dt.datetime.now().strftime("%c"), i + 1, args.repeats)
-        )
-
-    params = {
-        "r": r,
-        "sig": sig,
-        "rho": rho,
-        "q": q,
-        "p": p,
-        "Iter": Iter,
-        "lambda0": lambda0,
-        "v": v,
-    }
-    hashes = {"Y": Y_hashes, "C": C_hashes, "X": X_hashes}
-    results = {
-        "error_predict": errors_predict,
-        "error_full": errors_full,
-        "runtime": runtimes,
-        "inside_sig": inside_bars,
-    }
-    output = prepare_output(
-        args.input,
-        __file__,
-        params,
-        hashes,
-        results,
-        seed,
-        args.percentage,
-        missRatio,
-        "rPSMF",
-    )
-    dump_output(output, args.output)
-
-    fig, axs = plt.subplots(12, 1, figsize=(7, 7))
-    for i in range(12):
-        axs[i].plot(Ymiss[i, :], color="red", linewidth=2, label="Missing Inputs")
-        axs[i].plot(
-            original_full[i, :],
-            color="orange",
-            linewidth=2,
-            alpha=0.5,
-            label="Original",
-        )
-    plt.legend(loc="upper right", bbox_to_anchor=(1.1, -0.5), fontsize="small")
-    plt.show(block=False)
-    plt.savefig(f"rpsmf_input_{args.percentage}_{r}.pdf")
-
-    fig, axs = plt.subplots(12, 1, figsize=(7, 7))
-    for i in range(12):
-        axs[i].plot(Ymiss[i, :], color="red", linewidth=2, label="Missing Inputs")
-        axs[i].plot(
-            res[i, :], color="blue", linestyle="--", linewidth=1, label="Reconstruction"
-        )
-        axs[i].plot(
-            original_full[i, :],
-            color="orange",
-            linewidth=2,
-            alpha=0.5,
-            label="Original",
-        )
-    plt.legend(loc="upper right", bbox_to_anchor=(1.1, -0.4), fontsize="small")
-    plt.show(block=False)
-    plt.savefig(f"rpsmf_output_{args.percentage}_{r}.pdf")
+        fig, axs = plt.subplots(12, 1, figsize=(7, 7))
+        for i in range(12):
+            axs[i].plot(Ymiss[i, :], color="red", linewidth=2, label="Missing Inputs")
+            axs[i].plot(
+                results_by_rank[r]["res"][-1][i, :],
+                color="blue",
+                linestyle="--",
+                linewidth=1,
+                label="Reconstruction",
+            )
+            axs[i].plot(
+                original_full[i, :],
+                color="orange",
+                linewidth=2,
+                alpha=0.5,
+                label="Original",
+            )
+        plt.legend(loc="upper right", bbox_to_anchor=(1.1, -0.4), fontsize="small")
+        plt.show(block=False)
+        plt.savefig(f"rpsmf_output_{args.percentage}_{r}.pdf")
 
 
 if __name__ == "__main__":

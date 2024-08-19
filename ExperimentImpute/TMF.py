@@ -94,18 +94,31 @@ def main():
 
     # Extract dimensions and set latent dimensionality
     d, n = Yorig.shape
-    r = 3
+    ranks = [3, 10]
     Iter = 2
     rho = 10
     R = rho * np.eye(d)
 
+    results_by_rank = {
+        rank: {
+            "errors_predict": [],
+            "errors_full": [],
+            "runtimes": [],
+            "Y_hashes": [],
+            "C_hashes": [],
+            "X_hashes": [],
+            "res": [],
+        }
+        for rank in ranks
+    }
+
     # Initialize arrays to keep track of quantaties of interest
-    errors_predict = []
-    errors_full = []
-    runtimes = []
-    Y_hashes = []
-    C_hashes = []
-    X_hashes = []
+    # errors_predict = []
+    # errors_full = []
+    # runtimes = []
+    # Y_hashes = []
+    # C_hashes = []
+    # X_hashes = []
 
     for i in _range(args.repeats):
         # Create the missing mask (missMask) and its inverse (M)
@@ -117,82 +130,98 @@ def main():
         Y = np.copy(Ymiss)
         Y[np.isnan(Y)] = 0
 
-        C = np.random.rand(d, r)
-        X = np.random.rand(r, n)
+        for r in ranks:
+            C = np.random.rand(d, r)
+            X = np.random.rand(r, n)
 
-        # store hash of matrices; used to ensure they're the same between
-        # scripts
-        Y_hashes.append(matrix_hash(Y))
-        C_hashes.append(matrix_hash(C))
-        X_hashes.append(matrix_hash(X))
+            # store hash of matrices; used to ensure they're the same between
+            # scripts
+            results_by_rank[r]["Y_hashes"].append(matrix_hash(Y))
+            results_by_rank[r]["C_hashes"].append(matrix_hash(C))
+            results_by_rank[r]["X_hashes"].append(matrix_hash(X))
 
-        YrecInit = C @ X
-        Einit = RMSEM(YrecInit, YorigInt, missMask)
+            YrecInit = C @ X
+            Einit = RMSEM(YrecInit, YorigInt, missMask)
 
-        [ep, ef, rt, res] = temporalRegularizedMF(
-            Y, C, X, d, n, r, M, missMask, rho, R, Iter, YorigInt, Einit
+            [ep, ef, rt, res] = temporalRegularizedMF(
+                Y, C, X, d, n, r, M, missMask, rho, R, Iter, YorigInt, Einit
+            )
+
+            results_by_rank[r]["errors_predict"].append(ep[:, Iter].item())
+            results_by_rank[r]["errors_full"].append(ef[:, Iter].item())
+            results_by_rank[r]["runtimes"].append(rt[:, Iter].item())
+            results_by_rank[r]["res"].append(res)
+
+            log(
+                "[%s] Rank %02i, Finished step %04i of %04i"
+                % (dt.datetime.now().strftime("%c"), r, i + 1, args.repeats)
+            )
+
+    for r in ranks:
+        params = {
+            "r": r,
+            "rho": rho,
+            "Iter": Iter,
+        }
+        hashes = {
+            "Y": results_by_rank[r]["Y_hashes"],
+            "C": results_by_rank[r]["C_hashes"],
+            "X": results_by_rank[r]["X_hashes"],
+        }
+        results = {
+            "error_predict": results_by_rank[r]["errors_predict"],
+            "error_full": results_by_rank[r]["errors_full"],
+            "runtime": results_by_rank[r]["runtimes"],
+            "inside_sig": None,
+        }
+        output = prepare_output(
+            args.input,
+            __file__,
+            params,
+            hashes,
+            results,
+            seed,
+            args.percentage,
+            missRatio,
+            "TMF",
         )
+        fo = f"ExperimentImpute/output/beijing_temperature_{args.percentage}_TMF_{r}.json"
+        dump_output(output, fo)
 
-        errors_predict.append(ep[:, Iter].item())
-        errors_full.append(ef[:, Iter].item())
-        runtimes.append(rt[:, Iter].item())
+        fig, axs = plt.subplots(12, 1, figsize=(7, 7))
+        for i in range(12):
+            axs[i].plot(Ymiss[i, :], color="red", linewidth=2, label="Missing Inputs")
+            axs[i].plot(
+                original_full[i, :],
+                color="orange",
+                linewidth=2,
+                alpha=0.5,
+                label="Original",
+            )
+        plt.legend(loc="upper right", bbox_to_anchor=(1.1, -0.5), fontsize="small")
+        plt.show(block=False)
+        plt.savefig(f"tmf_input_{args.percentage}_{r}.pdf")
 
-        log(
-            "[%s] Finished step %04i of %04i"
-            % (dt.datetime.now().strftime("%c"), i + 1, args.repeats)
-        )
-
-    params = {"r": r, "rho": rho, "Iter": Iter}
-    hashes = {"Y": Y_hashes, "C": C_hashes, "X": X_hashes}
-    results = {
-        "error_predict": errors_predict,
-        "error_full": errors_full,
-        "runtime": runtimes,
-        "inside_sig": None,
-    }
-    output = prepare_output(
-        args.input,
-        __file__,
-        params,
-        hashes,
-        results,
-        seed,
-        args.percentage,
-        missRatio,
-        "TMF",
-    )
-    dump_output(output, args.output)
-
-    fig, axs = plt.subplots(12, 1, figsize=(7, 7))
-    for i in range(12):
-        axs[i].plot(Ymiss[i, :], color="red", linewidth=2, label="Missing Inputs")
-        axs[i].plot(
-            original_full[i, :],
-            color="orange",
-            linewidth=2,
-            alpha=0.5,
-            label="Original",
-        )
-    plt.legend(loc="upper right", bbox_to_anchor=(1.1, -0.5), fontsize="small")
-    plt.show(block=False)
-    plt.savefig(f"tmf_input_{args.percentage}_{r}.pdf")
-
-    fig, axs = plt.subplots(12, 1, figsize=(7, 7))
-    for i in range(12):
-        axs[i].plot(Ymiss[i, :], color="red", linewidth=2, label="Missing Inputs")
-        axs[i].plot(
-            res[i, :], color="blue", linestyle="--", linewidth=1, label="Reconstruction"
-        )
-        axs[i].plot(
-            original_full[i, :],
-            color="orange",
-            linewidth=2,
-            alpha=0.5,
-            label="Original",
-        )
-    plt.legend(loc="upper right", bbox_to_anchor=(1.1, -0.4), fontsize="small")
-    plt.show(block=False)
-    plt.savefig(f"tmf_output_{args.percentage}_{r}.pdf")
+        fig, axs = plt.subplots(12, 1, figsize=(7, 7))
+        for i in range(12):
+            axs[i].plot(Ymiss[i, :], color="red", linewidth=2, label="Missing Inputs")
+            axs[i].plot(
+                results_by_rank[r]["res"][-1][i, :],
+                color="blue",
+                linestyle="--",
+                linewidth=1,
+                label="Reconstruction",
+            )
+            axs[i].plot(
+                original_full[i, :],
+                color="orange",
+                linewidth=2,
+                alpha=0.5,
+                label="Original",
+            )
+        plt.legend(loc="upper right", bbox_to_anchor=(1.1, -0.4), fontsize="small")
+        plt.show(block=False)
+        plt.savefig(f"tmf_output_{args.percentage}_{r}.pdf")
 
 
 if __name__ == "__main__":

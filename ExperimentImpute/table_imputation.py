@@ -10,18 +10,19 @@ See the LICENSE file for copyright and licensing information.
 
 import argparse
 import json
-import numpy as np
 import os
 import sys
 
+import numpy as np
 from table_common import (
-    METHODS,
-    PERCENTAGES_APP,
-    PERCENTAGE_MAIN,
-    DATASETS,
     DATASET_NAMES,
-    PREAMBLE,
+    DATASETS,
     EPILOGUE,
+    METHODS,
+    PERCENTAGE_MAIN,
+    PERCENTAGES_APP,
+    PREAMBLE,
+    RANKS,
     make_filepath,
 )
 
@@ -91,8 +92,8 @@ def get_mean_error(filename, method):
     return np.mean(values)
 
 
-def get_cell_value(method, dataset, perc, result_dir):
-    path = make_filepath(method, dataset, perc, result_dir)
+def get_cell_value(method, dataset, perc, rank, result_dir):
+    path = make_filepath(method, dataset, perc, rank, result_dir)
     if not os.path.exists(path):
         warn_missing(path)
         return "TODO"
@@ -104,7 +105,7 @@ def get_cell_value(method, dataset, perc, result_dir):
         if other_method == method:
             continue
 
-        other_path = make_filepath(other_method, dataset, perc, result_dir)
+        other_path = make_filepath(other_method, dataset, perc, rank, result_dir)
         if not os.path.exists(other_path):
             continue
 
@@ -117,16 +118,12 @@ def get_cell_value(method, dataset, perc, result_dir):
 
 
 def get_value_nohighlight(
-    method, dataset, perc, result_dir, key, fmt=None, reduce="mean"
+    method, dataset, perc, rank, result_dir, key, fmt=None, reduce="mean"
 ):
 
-    fmt = (
-        (lambda s: s if isinstance(s, str) else "%.2f" % s)
-        if fmt is None
-        else fmt
-    )
+    fmt = (lambda s: s if isinstance(s, str) else "%.2f" % s) if fmt is None else fmt
 
-    path = make_filepath(method, dataset, perc, result_dir)
+    path = make_filepath(method, dataset, perc, rank, result_dir)
     if not os.path.exists(path):
         warn_missing(path)
         return fmt("(TODO)")
@@ -150,7 +147,7 @@ def get_value_nohighlight(
     return fmt(func(values))
 
 
-def get_cell_std(method, dataset, perc, result_dir):
+def get_cell_std(method, dataset, perc, rank, result_dir):
     # padding is overengineering to right-align the stds
     key = "error_full"
     pad = lambda v: "" if v < 10 else (2 * "\;" if v < 100 else 3 * "\;")
@@ -159,6 +156,7 @@ def get_cell_std(method, dataset, perc, result_dir):
         method,
         dataset,
         perc,
+        rank,
         result_dir,
         key=key,
         fmt=lambda v: v,
@@ -178,8 +176,8 @@ def get_cell_std(method, dataset, perc, result_dir):
     )
 
 
-def get_runtime(method, dataset, perc, result_dir):
-    return get_value_nohighlight(method, dataset, perc, result_dir, "runtime")
+def get_runtime(method, dataset, perc, rank, result_dir):
+    return get_value_nohighlight(method, dataset, perc, rank, result_dir, "runtime")
 
 
 def get_runtime_std(method, dataset, perc, result_dir):
@@ -194,7 +192,7 @@ def get_runtime_std(method, dataset, perc, result_dir):
     )
 
 
-def build_table(result_dir, perc):
+def build_table(result_dir, perc, rank):
     tex = []
     tex.append("%% DO NOT EDIT - AUTOMATICALLY GENERATED FROM RESULTS!")
     tex.append("%% This table requires booktabs, amsmath, and multirow!")
@@ -229,12 +227,12 @@ def build_table(result_dir, perc):
     for method in METHODS:
         vrow = [methname(method)]
         for dataset in DATASETS:
-            value = get_cell_value(method, dataset, perc, result_dir)
-            std = get_cell_std(method, dataset, perc, result_dir)
+            value = get_cell_value(method, dataset, perc, rank, result_dir)
+            std = get_cell_std(method, dataset, perc, rank, result_dir)
             vrow.append(f"$\\underset{{{std}}}{{{value}}}$")
 
         for dataset in DATASETS:
-            vrow.append(get_runtime(method, dataset, perc, result_dir))
+            vrow.append(get_runtime(method, dataset, perc, rank, result_dir))
         tex.append(" & ".join(vrow) + "\\\\")
 
     tex.append("\\bottomrule")
@@ -244,10 +242,12 @@ def build_table(result_dir, perc):
 
 def main():
     args = parse_args()
-    tex = build_table(args.input_dir, args.percentage)
-    tex = PREAMBLE + tex + EPILOGUE if args.standalone else tex
-    with open(args.output_file, "w") as fp:
-        fp.write("\n".join(tex))
+    for r in RANKS:
+        tex = build_table(args.input_dir, args.percentage, r)
+        tex = PREAMBLE + tex + EPILOGUE if args.standalone else tex
+        fo = f"ExperimentImpute/tables/table_imputation_{args.percentage}_{r}.tex"
+        with open(fo, "w") as fp:
+            fp.write("\n".join(tex))
 
 
 if __name__ == "__main__":

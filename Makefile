@@ -156,6 +156,7 @@ IMPUTE_DATA=beijing_temperature
 IMPUTE_REPEATS=100
 IMPUTE_PERCENTAGE=20 30 40
 IMPUTE_METRICS=imputation coverage
+IMPUTE_RANK=3 10
 
 impute-output:
 	mkdir -p $(EXP_DIR_IMPUTE)/output
@@ -164,34 +165,38 @@ impute-tables:
 	mkdir -p $(EXP_DIR_IMPUTE)/tables
 
 define ExpImpute
-TARGETS_IMPUTE += $(EXP_DIR_IMPUTE)/output/$(1)_$(2)_$(3).json
+TARGETS_IMPUTE += $(EXP_DIR_IMPUTE)/output/$(1)_$(2)_$(3)_$(4).json
 
-$(EXP_DIR_IMPUTE)/output/$(1)_$(2)_$(3).json: $(EXP_DIR_IMPUTE)/data/$(1).csv \
-	$(EXP_DIR_IMPUTE)/$(3).py | impute-output venv
+$(EXP_DIR_IMPUTE)/output/$(1)_$(2)_$(3)_$(4).json: $(EXP_DIR_IMPUTE)/data/$(1).csv \
+    $(EXP_DIR_IMPUTE)/$(3).py | impute-output venv
+	@echo "Running imputation for dataset $(1), percentage $(2), method $(3), rank $(4)"
 	source $(VENV_DIR)/bin/activate && \
-		python $(EXP_DIR_IMPUTE)/$(3).py -i $$< -o $$@ -p $(2) -s 123 \
-		-r $(IMPUTE_REPEATS) -f
+	python $(EXP_DIR_IMPUTE)/$(3).py -i $$< -o $$@ -p $(2) -s 123 \
+	-r $(IMPUTE_REPEATS) -f
 endef
 
-define ExpImputeTable
-TABLES_IMPUTE += $(EXP_DIR_IMPUTE)/tables/table_$(1)_$(2).tex
 
-$(EXP_DIR_IMPUTE)/tables/table_$(1)_$(2).tex: \
+define ExpImputeTable
+TABLES_IMPUTE += $(EXP_DIR_IMPUTE)/tables/table_$(1)_$(2)_$(3).tex
+
+$(EXP_DIR_IMPUTE)/tables/table_$(1)_$(2)_$(3).tex: \
 	$(EXP_DIR_IMPUTE)/table_$(1).py $(TARGETS_IMPUTE) | impute-tables venv
 	source $(VENV_DIR)/bin/activate && \
 		python $$< -i $(EXP_DIR_IMPUTE)/output -o $$@ -p $(2)
 endef
 
+$(foreach rank,$(IMPUTE_RANK),\
 $(foreach perc,$(IMPUTE_PERCENTAGE),\
 $(foreach method,$(IMPUTE_METHODS),\
 $(foreach dataset,$(IMPUTE_DATA),\
-$(eval $(call ExpImpute,$(dataset),$(perc),$(method)))\
-)))
+$(eval $(call ExpImpute,$(dataset),$(perc),$(method),$(rank)))\
+))))
 
+$(foreach rank,$(IMPUTE_RANK),\
 $(foreach perc,$(IMPUTE_PERCENTAGE),\
 $(foreach metric,$(IMPUTE_METRICS),\
-$(eval $(call ExpImputeTable,$(metric),$(perc)))\
-))
+$(eval $(call ExpImputeTable,$(metric),$(perc),$(rank)))\
+)))
 
 ExperimentImpute: $(TARGETS_IMPUTE) $(TABLES_IMPUTE)
 

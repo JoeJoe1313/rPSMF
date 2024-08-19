@@ -10,17 +10,18 @@ See the LICENSE file for copyright and licensing information.
 
 import argparse
 import json
-import numpy as np
 import os
 import sys
 
+import numpy as np
 from table_common import (
-    PROB_METHODS,
-    PERCENTAGES_APP,
-    DATASETS,
     DATASET_NAMES,
-    PREAMBLE,
+    DATASETS,
     EPILOGUE,
+    PERCENTAGES_APP,
+    PREAMBLE,
+    PROB_METHODS,
+    RANKS,
     make_filepath,
 )
 
@@ -87,8 +88,8 @@ def get_mean_coverage(path, method):
     return np.mean(values)
 
 
-def get_coverage(method, dataset, perc, result_dir):
-    path = make_filepath(method, dataset, perc, result_dir)
+def get_coverage(method, dataset, perc, rank, result_dir):
+    path = make_filepath(method, dataset, perc, rank, result_dir)
     if not os.path.exists(path):
         warn_missing(path)
         return "TODO"
@@ -100,7 +101,7 @@ def get_coverage(method, dataset, perc, result_dir):
         if other_method == method:
             continue
 
-        other_path = make_filepath(other_method, dataset, perc, result_dir)
+        other_path = make_filepath(other_method, dataset, perc, rank, result_dir)
         if not os.path.exists(other_path):
             continue
 
@@ -112,7 +113,7 @@ def get_coverage(method, dataset, perc, result_dir):
     return "%.2f" % cov
 
 
-def build_table(result_dir, perc):
+def build_table(result_dir, perc, rank):
     tex = []
     tex.append("%% DO NOT EDIT - AUTOMATICALLY GENERATED FROM RESULTS!")
     tex.append("%% This table requires booktabs and multirow!")
@@ -125,16 +126,14 @@ def build_table(result_dir, perc):
     fmt = "l" + "c" * len(DATASETS)
     tex.append("\\begin{tabular}{%s}" % fmt)
     tex.append("\\toprule")
-    header = (
-        " & ".join([""] + [dataset_name(dset) for dset in DATASETS]) + " \\\\"
-    )
+    header = " & ".join([""] + [dataset_name(dset) for dset in DATASETS]) + " \\\\"
     tex.append(header)
     tex.append("\\cmidrule(lr){2-%i}" % (len(DATASETS) + 1))
 
     for method in PROB_METHODS:
         vrow = [methname(method)]
         for dataset in DATASETS:
-            value = get_coverage(method, dataset, perc, result_dir)
+            value = get_coverage(method, dataset, perc, rank, result_dir)
             vrow.append(value)
         tex.append(" & ".join(vrow) + " \\\\")
 
@@ -145,10 +144,12 @@ def build_table(result_dir, perc):
 
 def main():
     args = parse_args()
-    tex = build_table(args.input_dir, args.percentage)
-    tex = PREAMBLE + tex + EPILOGUE if args.standalone else tex
-    with open(args.output_file, "w") as fp:
-        fp.write("\n".join(tex))
+    for r in RANKS:
+        tex = build_table(args.input_dir, args.percentage, r)
+        tex = PREAMBLE + tex + EPILOGUE if args.standalone else tex
+        fo = f"ExperimentImpute/tables/table_coverage_{args.percentage}_{r}.tex"
+        with open(fo, "w") as fp:
+            fp.write("\n".join(tex))
 
 
 if __name__ == "__main__":

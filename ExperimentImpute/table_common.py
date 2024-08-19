@@ -17,6 +17,7 @@ DATASETS = [
 ]
 PERCENTAGES_APP = [20, 40]
 PERCENTAGE_MAIN = 30
+RANKS = [3, 10]
 
 DATASET_NAMES = {
     "beijing_temperature": "ECG",
@@ -32,6 +33,6 @@ PREAMBLE = [
 EPILOGUE = ["\\end{document}"]
 
 
-def make_filepath(method, dataset, perc, result_dir):
-    filename = "%s_%i_%s.json" % (dataset, perc, method)
+def make_filepath(method, dataset, perc, rank, result_dir):
+    filename = "%s_%i_%s_%s.json" % (dataset, perc, method, rank)
     return os.path.join(result_dir, filename)
