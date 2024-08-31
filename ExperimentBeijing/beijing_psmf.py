@@ -6,11 +6,37 @@ import time
 
 import autograd.numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
+import pywt
 from psmf import PSMFIter
 from psmf.nonlinearities import FourierBasis, RandomWalk
 from psmf.tracking import TrackingMixin
+from scipy.signal import resample
 
 plt.rcParams["figure.raise_window"] = False
+
+
+def wavelet_denoise(ecg_signal, wavelet="db4", level=3):
+    """
+    Apply wavelet denoising to a 12-lead ECG signal.
+
+    Parameters:
+    - ecg_signal: numpy array of shape (12, 500)
+    - wavelet: the type of wavelet to use (default is 'db4')
+    - level: level of decomposition (default is 3)
+
+    Returns:
+    - denoised_ecg: numpy array of the denoised ECG signal with the same shape as the input
+    """
+    denoised_ecg = np.zeros_like(ecg_signal)
+    for i in range(ecg_signal.shape[0]):
+        coeffs = pywt.wavedec(ecg_signal[i], wavelet, level=level)
+        sigma = np.median(np.abs(coeffs[-1])) / 0.6745
+        threshold = sigma * np.sqrt(2 * np.log(len(ecg_signal[i])))
+        denoised_coeffs = [pywt.threshold(c, threshold, mode="soft") for c in coeffs]
+        denoised_ecg[i] = pywt.waverec(denoised_coeffs, wavelet)
+
+    return denoised_ecg
 
 
 def parse_args():
@@ -101,33 +127,35 @@ def load_data(
         np.ndarray: Loaded data.
     """
     Y = np.genfromtxt(filename, delimiter=",")
-    # Y = ((Y.T - Y.T.mean(axis=0)) / (Y.T.std(axis=0))).T
-    # return Y[:, ::sample_length] if sample else Y
-    # Y = Y / np.max(np.abs(Y))
-    return Y[:, :sample_length] if sample else Y
+    Y = resample(Y, 1500, axis=1)
+    Y = np.round(Y).astype(int)
+    Y = Y[:, :sample_length] if sample else Y
+    Y = wavelet_denoise(Y, wavelet="db4", level=None)
+    Y = ((Y.T - Y.T.mean(axis=0)) / (Y.T.std(axis=0))).T
+
+    return Y
 
 
 def main():
     args = parse_args()
-
     # Hyperparameters
     seed = 2151  # fixed for reproducibility
-    rank = 2
-    learning_rate = 1e-1
+    rank = 6
+    learning_rate = 1e-3
     theta_scale = 0.1
     c_scale = v_scale = 5
     p_scale = q_scale = r_scale = 1
-    n_iter = 50
+    n_iter = 400
 
     if args.figure == "periodic":
-        nonlinearity = FourierBasis(rank=rank, N=2)
+        nonlinearity = FourierBasis(rank=rank, N=3)
     elif args.figure == "random_walk":
         nonlinearity = RandomWalk()
     else:
         raise ValueError("Unknown figure request: {args.figure}")
 
     np.random.seed(seed)
-    Y = load_data(args.input, sample=True, sample_length=1800)
+    Y = load_data(args.input, sample=True, sample_length=400)
 
     d, T = Y.shape
     n_pred = int(0.2 * T)
