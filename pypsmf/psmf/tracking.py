@@ -98,8 +98,9 @@ class TrackingMixin:
         Y = np.asarray([y_obs[t] for t in range(1, T + n_pred + 1)])
         Y = Y.squeeze().T
         Y_pred = np.asarray([self._y_pred[t] for t in range(1, T + n_pred + 1)])
+        # breakpoint()
         Y_pred = Y_pred.squeeze().T
-
+        # breakpoint()
         U, V = sorted(self._plot_dims(self._d))
 
         # Colors come from the "high-contrast" color scheme of
@@ -121,9 +122,9 @@ class TrackingMixin:
                 color="#bb5566",
                 linestyle="dashed",
             )
-            ax.axis("on")
-            # ax.set_ylim((-1, 1))
-            ax.hlines(0, 0, T + n_pred + 1, color="black", linestyle="dotted")
+            ax.axis("off")
+            # ax.set_ylim((-5, 5))
+            # ax.hlines(0, 0, T + n_pred + 1, color="black", linestyle="dotted")
 
         plt.pause(0.01)
 
@@ -198,13 +199,16 @@ class TrackingMixin:
         assert name in ["fit", "bases", "cost_y", "cost_theta"]
 
         if name == "cost_y":
-            idx = sorted(self._E_y.keys())
-            E_y = np.array([self._E_y[i] for i in idx])
+            idx = sorted(self._E_train.keys())
+            E_train = np.array([self._E_train[i] for i in idx])
+            E_pred = np.array([self._E_pred[i] for i in idx])
             plt.close(self._fig_error)
             self._fig_error = plt.figure(figsize=(7.5, 2))
-            plt.plot(E_y, color="#bb5566")
+            plt.plot(E_train, color="#bb5566", label="Train")
+            plt.plot(E_pred, label="Pred")
             plt.xlabel("Iterations", fontsize=14)
             plt.ylabel("Frobenius norm", fontsize=14)
+            plt.legend()
             fig = self._fig_error
         elif name == "cost_theta":
             idx = sorted(self._E_theta.keys())

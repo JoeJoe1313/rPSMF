@@ -248,9 +248,9 @@ def main():
         plt.show(block=False)
         plt.savefig(f"mlesmf_input_{args.percentage}_{r}.pdf")
 
-        fig, axs = plt.subplots(12, 1, figsize=(7, 7))
+        fig, axs = plt.subplots(12, 1, figsize=(7, 10))
         for i in range(12):
-            axs[i].plot(Ymiss[i, :], color="red", linewidth=2, label="Missing Inputs")
+            axs[i].plot(Ymiss[i, :], color="red", linewidth=2, label="Original signal")
             axs[i].plot(
                 results_by_rank[r]["res"][-1][i, :],
                 color="blue",
@@ -263,7 +263,7 @@ def main():
                 color="orange",
                 linewidth=2,
                 alpha=0.5,
-                label="Original",
+                label="Missing segments original signal",
             )
         plt.legend(loc="upper right", bbox_to_anchor=(1.1, -0.4), fontsize="small")
         plt.show(block=False)

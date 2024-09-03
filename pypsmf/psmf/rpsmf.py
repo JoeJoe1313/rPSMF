@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
+from collections import defaultdict
+
 import autograd.numpy as np
 import mpmath as mp
-
-from collections import defaultdict
 
 from .psmf import PSMFIter
 
@@ -25,9 +25,7 @@ class rPSMFIter(PSMFIter):
         optim="adam",
     ):
         assert optim in ["adam", "sgd"]
-        super().__init__(
-            theta0, C0, V0, mu0, P0, Q0, R0, nonlinearity, optim=optim
-        )
+        super().__init__(theta0, C0, V0, mu0, P0, Q0, R0, nonlinearity, optim=optim)
 
         self.Q0 = Q0
         self.R0 = R0
@@ -45,18 +43,14 @@ class rPSMFIter(PSMFIter):
         self._alpha = 1.0
         self._beta = 1.0
         if use_scaling:
-            self._alpha = self.compute_scaling_factor(
-                self._r * self._d, self._d
-            )
+            self._alpha = self.compute_scaling_factor(self._r * self._d, self._d)
             self._beta = self.compute_scaling_factor(self._r, self._d)
 
     def incremental_ll_factory(self):
         # Returns the incremental likelihood function
         def normnon(theta, mu, V, t):
             return (
-                self.nonlinearity(theta, mu, t).T
-                @ V
-                @ self.nonlinearity(theta, mu, t)
+                self.nonlinearity(theta, mu, t).T @ V @ self.nonlinearity(theta, mu, t)
             )
 
         def incremental_ll(theta, mu, y, C, V, eta_k, lmd, d, t):
@@ -64,9 +58,7 @@ class rPSMFIter(PSMFIter):
                 (d + lmd) / 2.0
             ) * np.log(
                 1
-                + np.power(
-                    np.linalg.norm(y - C @ self.nonlinearity(theta, mu, t)), 2
-                )
+                + np.power(np.linalg.norm(y - C @ self.nonlinearity(theta, mu, t)), 2)
                 / (lmd * (eta_k + normnon(theta, mu, V, t)))
             )
 
@@ -124,9 +116,7 @@ class rPSMFIter(PSMFIter):
 
     def _compute_eta_k(self, k, P_bar):
         return (
-            np.trace(
-                self._R[k - 1] + self._C[k - 1] @ P_bar @ self._C[k - 1].T
-            )
+            np.trace(self._R[k - 1] + self._C[k - 1] @ P_bar @ self._C[k - 1].T)
             / self._d
         )
 
@@ -160,10 +150,7 @@ class rPSMFIter(PSMFIter):
         self._P[k] = (
             self._beta
             * omega_k
-            * (
-                P_bar
-                - P_bar @ self._C[k - 1].T @ Skinv @ self._C[k - 1] @ P_bar
-            )
+            * (P_bar - P_bar @ self._C[k - 1].T @ Skinv @ self._C[k - 1] @ P_bar)
         )
         self._Q[k] = omega_k * self._Q[k - 1]
         self._R[k] = omega_k * self._R[k - 1]
@@ -188,9 +175,7 @@ class rPSMFIterMissing(rPSMFIter):
     def incremental_ll_factory(self):
         def normnon(theta, mu, V, t):
             return (
-                self.nonlinearity(theta, mu, t).T
-                @ V
-                @ self.nonlinearity(theta, mu, t)
+                self.nonlinearity(theta, mu, t).T @ V @ self.nonlinearity(theta, mu, t)
             )
 
         def incremental_ll(theta, mu, z, M, C, V, eta_k, lmd, d, t):
@@ -218,9 +203,7 @@ class rPSMFIterMissing(rPSMFIter):
         Nk = self._compute_dictionary_innovation(k, eta_k, mu_bar, P_bar)
         self._update_dictionary_mean(k, yk, Nk, mu_bar)
         self._update_dictionary_covariance(k, Nk, mu_bar, yk, Mk, eta_k)
-        Skinv = self._compute_inverse_coefficient_innovation(
-            k, mu_bar, P_bar, Mk, MkC
-        )
+        Skinv = self._compute_inverse_coefficient_innovation(k, mu_bar, P_bar, Mk, MkC)
         self._update_coefficient_mean(k, yk, MkC, Skinv, mu_bar, P_bar)
         self._update_coefficient_covariance(k, Skinv, P_bar, yk, MkC)
         self._store_gradient(i, k, yk, eta_k)
@@ -230,24 +213,18 @@ class rPSMFIterMissing(rPSMFIter):
         return MkC @ mu_bar
 
     def _compute_eta_k(self, k, P_bar, Mk, MkC):
-        return (
-            np.trace(Mk @ self._R[k - 1] @ Mk.T + MkC @ P_bar @ MkC.T)
-            / self._d
-        )
+        return np.trace(Mk @ self._R[k - 1] @ Mk.T + MkC @ P_bar @ MkC.T) / self._d
 
     def _update_dictionary_covariance(self, k, Nk, mu_bar, yk, Mk, eta_k):
         num = self._V[k - 1] @ mu_bar @ mu_bar.T @ self._V[k - 1]
         U = mu_bar.T @ self._V[k - 1] @ mu_bar * Mk + eta_k * np.eye(self._d)
         Ui = np.diag(1.0 / np.diag(U))  # faster than np.linalg.inv (tested)
         phi_k = (
-            self._lambda[k - 1]
-            + (yk - self._y_pred[k]).T @ Ui @ (yk - self._y_pred[k])
+            self._lambda[k - 1] + (yk - self._y_pred[k]).T @ Ui @ (yk - self._y_pred[k])
         ) / (self._lambda[k - 1] + self._d)
         self._V[k] = self._alpha * phi_k * (self._V[k - 1] - num / Nk)
 
-    def _compute_inverse_coefficient_innovation(
-        self, k, mu_bar, P_bar, Mk, MkC
-    ):
+    def _compute_inverse_coefficient_innovation(self, k, mu_bar, P_bar, Mk, MkC):
         Rbar = Mk @ self._R[k - 1] @ Mk.T + np.kron(
             mu_bar.T @ self._V[k - 1] @ mu_bar, Mk
         )
@@ -263,9 +240,7 @@ class rPSMFIterMissing(rPSMFIter):
             + (yk - self._y_pred[k]).T @ Skinv @ (yk - self._y_pred[k])
         ) / (self._lambda[k - 1] + self._d)
         self._P[k] = (
-            self._beta
-            * omega_k
-            * (P_bar - P_bar @ MkC.T @ Skinv @ MkC @ P_bar)
+            self._beta * omega_k * (P_bar - P_bar @ MkC.T @ Skinv @ MkC @ P_bar)
         )
         self._Q[k] = omega_k * self._Q[k - 1]
         self._R[k] = omega_k * self._R[k - 1]
@@ -328,7 +303,5 @@ class rPSMFRecursive(rPSMFIter):
         last_theta = self._theta[T]
         self._mu_pred = {T: self._mu[T]}
         for k in range(T + 1, T + n_pred + 1):
-            self._mu_pred[k] = self.nonlinearity(
-                last_theta, self._mu_pred[k - 1], k
-            )
+            self._mu_pred[k] = self.nonlinearity(last_theta, self._mu_pred[k - 1], k)
             self._y_pred[k] = self._C[T] @ self._mu_pred[k]
